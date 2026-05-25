@@ -128,7 +128,7 @@ struct FlowJump {
 // 23. 0xCXNN: Vx = rand() & 0xNN
 struct RandAnd {
   uint8_t X;
-  uint8_t value;
+  uint8_t NN;
 };
 
 // 24. 0xDXYN: Draw

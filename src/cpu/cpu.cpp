@@ -1,49 +1,219 @@
 #include "cpu.h"
 
 #include <cstdint>
-#include <stdexcept>
 
-#include "memory/memory.h"
+#include "common/constants.h"
 
 // Opcode Executor
 struct OpcodeExecutor {
   CPU& cpu;
 
-  void operator()(const CallMCR& op) {}
-  void operator()(const DisplayClear& op) {}
-  void operator()(const FlowReturn& op) {}
-  void operator()(const FlowGoto& op) {}
-  void operator()(const FlowCall& op) {}
-  void operator()(const SkipIfXNN& op) {}
-  void operator()(const SkipIfNotXNN& op) {}
-  void operator()(const SkipIfXY& op) {}
-  void operator()(const SetX& op) {}
-  void operator()(const IncrementX& op) {}
-  void operator()(const AssignXY& op) {}
-  void operator()(const OrEQ& op) {}
-  void operator()(const AndEQ& op) {}
-  void operator()(const XorEQ& op) {}
-  void operator()(const AddEQ& op) {}
-  void operator()(const SubEQ& op) {}
-  void operator()(const RShift1& op) {}
-  void operator()(const SubYX& op) {}
-  void operator()(const LShift1& op) {}
-  void operator()(const SkipIfNotXY& op) {}
-  void operator()(const SetI& op) {}
-  void operator()(const FlowJump& op) {}
-  void operator()(const RandAnd& op) {}
-  void operator()(const Draw& op) {}
-  void operator()(const SkipIfKey& op) {}
-  void operator()(const SkipIfNotKey& op) {}
-  void operator()(const GetDelay& op) {}
-  void operator()(const GetKey& op) {}
-  void operator()(const SetDelay& op) {}
-  void operator()(const SetSound& op) {}
-  void operator()(const IncI& op) {}
-  void operator()(const SetSpriteLoc& op) {}
-  void operator()(const SetBCD& op) {}
-  void operator()(const RegDump& op) {}
-  void operator()(const RegLoad& op) {}
+  void operator()(const CallMCR&) {
+    // Pass, ignored in emulation
+  }
+  void operator()(const DisplayClear& op) {
+    // TODO:
+  }
+  void operator()(const FlowReturn&) {
+    cpu.program_counter = cpu.stack_pop();
+  }
+  void operator()(const FlowGoto& op) {
+#ifndef NDEBUG
+    if (op.address < ROM_START) {
+      std::cerr << "Warning: FlowGoto attempting to jump to interpreter memory space at 0x"
+                << std::hex << op.address << std::endl;
+    }
+#endif
+    cpu.program_counter = op.address;
+  }
+  void operator()(const FlowCall& op) {
+    cpu.stack_push(cpu.program_counter);
+    cpu.program_counter = op.address;
+  }
+  void operator()(const SkipIfXNN& op) {
+    if (cpu.registers[op.X] == op.NN) {
+      cpu.program_counter += 2;
+    }
+  }
+  void operator()(const SkipIfNotXNN& op) {
+    if (cpu.registers[op.X] != op.NN) {
+      cpu.program_counter += 2;
+    }
+  }
+  void operator()(const SkipIfXY& op) {
+    if (cpu.registers[op.X] == cpu.registers[op.Y]) {
+      cpu.program_counter += 2;
+    }
+  }
+  void operator()(const SetX& op) {
+    cpu.registers[op.X] = op.NN;
+  }
+  void operator()(const IncrementX& op) {
+    cpu.registers[op.X] += op.NN;
+  }
+  void operator()(const AssignXY& op) {
+    cpu.registers[op.X] = cpu.registers[op.Y];
+  }
+  void operator()(const OrEQ& op) {
+    cpu.registers[op.X] |= cpu.registers[op.Y];
+  }
+  void operator()(const AndEQ& op) {
+    cpu.registers[op.X] &= cpu.registers[op.Y];
+  }
+  void operator()(const XorEQ& op) {
+    cpu.registers[op.X] ^= cpu.registers[op.Y];
+  }
+  void operator()(const AddEQ& op) {
+    uint8_t carry = (0xFF - cpu.registers[op.X] < cpu.registers[op.Y]) ? 1 : 0;
+    cpu.registers[op.X] += cpu.registers[op.Y];
+    cpu.registers[0xF] = carry;
+  }
+  void operator()(const SubEQ& op) {
+    uint8_t borrow = (cpu.registers[op.X] >= cpu.registers[op.Y]) ? 1 : 0;
+    cpu.registers[op.X] -= cpu.registers[op.Y];
+    cpu.registers[0xF] = borrow;
+  }
+  void operator()(const RShift1& op) {
+#ifdef LEGACY
+    uint8_t shifted_out_bit = cpu.registers[op.Y] & 0x1;
+    cpu.registers[op.X] = cpu.registers[op.Y] >> 1;
+    cpu.registers[0xF] = shifted_out_bit;
+#else
+    uint8_t shifted_out_bit = cpu.registers[op.X] & 0x1;
+    cpu.registers[op.X] = cpu.registers[op.X] >> 1;
+    cpu.registers[0xF] = shifted_out_bit;
+#endif
+  }
+  void operator()(const SubYX& op) {
+    uint8_t borrow = (cpu.registers[op.X] <= cpu.registers[op.Y]) ? 1 : 0;
+    cpu.registers[op.X] = cpu.registers[op.Y] - cpu.registers[op.X];
+    cpu.registers[0xF] = borrow;
+  }
+  void operator()(const LShift1& op) {
+#ifdef LEGACY
+    uint8_t shifted_out_bit = (cpu.registers[op.Y] & 0b10000000) >> 7;
+    cpu.registers[op.X] = cpu.registers[op.Y] << 1;
+    cpu.registers[0xF] = shifted_out_bit;
+#else
+    uint8_t shifted_out_bit = (cpu.registers[op.X] & 0b10000000) >> 7;
+    cpu.registers[op.X] = cpu.registers[op.X] << 1;
+    cpu.registers[0xF] = shifted_out_bit;
+#endif
+  }
+  void operator()(const SkipIfNotXY& op) {
+    if (cpu.registers[op.X] != cpu.registers[op.Y]) {
+      cpu.program_counter += 2;
+    }
+  }
+  void operator()(const SetI& op) {
+    cpu.index_register = op.value;
+  }
+  void operator()(const FlowJump& op) {
+    cpu.program_counter = op.value + cpu.registers[0];
+  }
+  void operator()(const RandAnd& op) {
+    uint8_t random_byte = cpu.dist(cpu.rng);
+    cpu.registers[op.X] = random_byte & op.NN;
+  }
+  void operator()(const Draw& op) {
+    uint8_t x_start = cpu.registers[op.X] % DISPLAY_WIDTH;
+    uint8_t y_start = cpu.registers[op.Y] % DISPLAY_HEIGHT;
+
+    // Collision Flag set to false
+    cpu.registers[0xF] = 0;
+
+    for (uint8_t row = 0; row < op.N; row++) {
+      uint8_t sprite_byte = cpu.memory.read(cpu.index_register + row);
+
+      for (uint8_t col = 0; col < 8; col++) {
+        uint8_t sprite_pixel = (sprite_byte & (0x80 >> col));
+
+        if (sprite_pixel) {
+          if (x_start + col >= DISPLAY_WIDTH || y_start + row >= DISPLAY_HEIGHT) {
+            continue;
+          }
+
+          uint16_t screen_idx = (x_start + col) + (DISPLAY_WIDTH * (y_start + row));
+
+          if (cpu.graphics[screen_idx]) {
+            cpu.registers[0xF] = 1;
+          }
+
+          cpu.graphics[screen_idx] ^= 1;
+        }
+      }
+    }
+  }
+  void operator()(const SkipIfKey& op) {
+    uint8_t key = cpu.registers[op.X];
+    if (cpu.keypad[key]) {
+      cpu.program_counter += 2;
+    }
+  }
+  void operator()(const SkipIfNotKey& op) {
+    uint8_t key = cpu.registers[op.X];
+    if (!cpu.keypad[key]) {
+      cpu.program_counter += 2;
+    }
+  }
+  void operator()(const GetDelay& op) {
+    cpu.registers[op.X] = cpu.delay_timer;
+  }
+  void operator()(const GetKey& op) {
+    bool key_pressed = false;
+
+    for (uint8_t i = 0; i < 16; ++i) {
+      if (cpu.keypad[i]) {
+        cpu.registers[op.X] = i;
+        key_pressed = true;
+        break;
+      }
+    }
+
+    if (!key_pressed) {
+      cpu.program_counter -= 2;
+    }
+  }
+  void operator()(const SetDelay& op) {
+    cpu.delay_timer = cpu.registers[op.X];
+  }
+  void operator()(const SetSound& op) {
+    cpu.sound_timer = cpu.registers[op.X];
+  }
+  void operator()(const IncI& op) {
+    cpu.index_register += cpu.registers[op.X];
+  }
+  void operator()(const SetSpriteLoc& op) {
+    cpu.index_register = FONT_START + (cpu.registers[op.X] * 5);
+  }
+  void operator()(const SetBCD& op) {
+    uint8_t val = cpu.registers[op.X];
+    uint8_t hundreds = (val / 100) % 10;
+    uint8_t tens = (val / 10) % 10;
+    uint8_t ones = val % 10;
+
+    cpu.memory.write(cpu.index_register, hundreds);
+    cpu.memory.write(cpu.index_register + 1, tens);
+    cpu.memory.write(cpu.index_register + 2, ones);
+  }
+  void operator()(const RegDump& op) {
+    for (uint8_t i = 0; i <= op.X; ++i) {
+      cpu.memory.write(cpu.index_register + i, cpu.registers[i]);
+    }
+
+#ifdef LEGACY
+    cpu.index_register += op.X + 1;
+#endif
+  }
+  void operator()(const RegLoad& op) {
+    for (uint8_t i = 0; i <= op.X; ++i) {
+      cpu.registers[i] = cpu.memory.read(cpu.index_register + i);
+    }
+
+#ifdef LEGACY
+    cpu.index_register += op.X + 1;
+#endif
+  }
 };
 
 // Stack Operations

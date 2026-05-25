@@ -1,10 +1,8 @@
 #pragma once
-#include <cstdint>
-
 #include "../common/constants.h"
 #include "../common/opcodes.h"
 #include "../common/shared_libs.h"
-#include "memory/memory.h"
+#include "../memory/memory.h"
 
 // The main Emulator Class
 class CPU {
@@ -17,6 +15,11 @@ class CPU {
   // The 16th Register is the VF register that contains the carry flag
   // If a pixel is turned off as a part of drawing, that register is turned off
   // Used for Collision Detection
+
+  // Temporary Keypad
+  std::array<bool, 16> keypad{false};
+  // Temp Display
+  std::array<uint8_t, 64 * 32> graphics{0};
 
   // Index Register
   uint16_t index_register{0};
@@ -40,6 +43,8 @@ class CPU {
   Memory& memory;
 
   friend struct OpcodeExecutor;
+  std::mt19937 rng{std::random_device{}()};
+  std::uniform_int_distribution<uint16_t> dist{0, 255};
 
  public:
   explicit CPU(Memory& mem_ref) : memory(mem_ref) {}

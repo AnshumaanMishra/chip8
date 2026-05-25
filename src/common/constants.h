@@ -3,8 +3,8 @@
 
 #include "shared_libs.h"
 
-const size_t DISPLAY_WIDTH = 0x20;
-const size_t DISPLAY_HEIGHT = 0x40;
+const size_t DISPLAY_WIDTH = 0x40;
+const size_t DISPLAY_HEIGHT = 0x20;
 
 const size_t MEMORY_SIZE = 0x1000;
 
