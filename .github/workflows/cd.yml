@@ -1,0 +1,47 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - "release*"
+
+jobs:
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies & Build GTest
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang lcov \
+            libsdl3-dev libgtest-dev
+          sudo sh -c 'cd /usr/src/gtest && cmake . && make && cp lib/*.a /usr/lib/'
+
+      - name: Configure with coverage
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS="--coverage"
+
+      - name: Build and test
+        run: |
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+
+      - name: Generate report
+        run: |
+          lcov --capture --directory build --output-file coverage.info
+          lcov --remove coverage.info '/usr/*' '*/tests/*' \
+            --output-file coverage.info
+          lcov --list coverage.info
+
+      - name: Enforce 80% coverage gate
+        run: |
+          COVERAGE=$(lcov --summary coverage.info 2>&1 \
+            | grep 'lines' | grep -o '[0-9]*\.[0-9]*%' \
+            | head -1 | tr -d '%')
+          echo "Coverage: $COVERAGE%"
+          awk "BEGIN { exit ($COVERAGE < 80.0) }"
