@@ -1,12 +1,16 @@
 #pragma once
+#include <cstdint>
+
 #include "../common/constants.h"
+#include "../common/opcodes.h"
 #include "../common/shared_libs.h"
+#include "memory/memory.h"
 
 // The main Emulator Class
 class CPU {
  private:
   // To store the current opcode, we need a data type that allows 2 bytes
-  uint16_t opcode{0};
+  // The opcode will be returned from the functions
 
   // Allocating the general purpose registers
   std::array<uint8_t, NUM_REGISTERS> registers{0};
@@ -17,7 +21,7 @@ class CPU {
   // Index Register
   uint16_t index_register{0};
   // Program Counter
-  uint16_t program_counter{0};
+  uint16_t program_counter{ROM_START};
 
   // Timer Registers
   uint8_t delay_timer{0};
@@ -27,8 +31,25 @@ class CPU {
   // Stack
   // CHIP-8 has 16 levels of stack and a stack pointer
   std::array<uint16_t, STACK_SIZE> stack{0};
-  uint16_t stack_pointer{0};
+  uint8_t stack_pointer{0};
+
+  // Opcode Dispatch Table
+  // Essentially an array of functions acting as a map
+  static std::array<std::function<Opcode(uint16_t)>, 16> decode_table;
+
+  Memory& memory;
+
+  friend struct OpcodeExecutor;
 
  public:
-  CPU() = default;
+  explicit CPU(Memory& mem_ref) : memory(mem_ref) {}
+
+  void stack_push(uint16_t value);
+  uint16_t stack_pop();
+
+  uint16_t fetch();
+  Opcode decode(uint16_t extracted_opcode);
+  void execute();
+
+  void cycle();
 };
