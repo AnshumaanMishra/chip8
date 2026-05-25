@@ -1,15 +1,17 @@
 #pragma once
+#include <cstdint>
+
 #include "shared_libs.h"
 
-const size_t DISPLAY_WIDTH = 32;
-const size_t DISPLAY_HEIGHT = 64;
+const size_t DISPLAY_WIDTH = 0x20;
+const size_t DISPLAY_HEIGHT = 0x40;
 
-const size_t MEMORY_SIZE = 4096;
+const size_t MEMORY_SIZE = 0x1000;
 
-const size_t NUM_REGISTERS = 16;
-const size_t STACK_SIZE = 16;
+const size_t NUM_REGISTERS = 0x10;
+const size_t STACK_SIZE = 0x10;
 
-const std::array<uint8_t, 80> FONT = {
+const std::array<uint8_t, 0x50> FONT = {
     0xEF, 0x90, 0x90, 0x90, 0xF0,  // 0
     0x1f, 0x60, 0x20, 0x20, 0x70,  // 1
     0xEF, 0x10, 0xF0, 0x80, 0xF0,  // 2
@@ -30,3 +32,7 @@ const std::array<uint8_t, 80> FONT = {
 
 const size_t FONT_START = 0x050;
 const size_t FONT_END = 0x09F;
+const size_t ROM_START = 0x200;
+
+const uint16_t CPU_HZ = 500;
+const uint16_t TIMER_HZ = 60;
