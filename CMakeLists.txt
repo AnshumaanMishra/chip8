@@ -12,7 +12,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_link_options(-fsanitize=address,undefined)
 endif()
 
-find_package(SDL3 REQUIRED)
+option(CHIP8_HEADLESS "Build without SDL (for testing)" OFF)
+
+if(NOT CHIP8_HEADLESS)
+  find_package(SDL3 REQUIRED)
+endif()
 
 add_subdirectory(src)
 add_subdirectory(tests)
