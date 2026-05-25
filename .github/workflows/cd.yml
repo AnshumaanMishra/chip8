@@ -15,9 +15,15 @@ jobs:
       - name: Install dependencies & Build GTest
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang lcov \
-            libsdl3-dev libgtest-dev
+          sudo apt-get install -y cmake ninja-build clang lcov libgtest-dev
           sudo sh -c 'cd /usr/src/gtest && cmake . && make && cp lib/*.a /usr/lib/'
+
+      - name: Build & install SDL3 from source
+        run: |
+          git clone --depth 1 --branch release-3.2.10 https://github.com/libsdl-org/SDL.git
+          cmake -S SDL -B SDL/build -DCMAKE_BUILD_TYPE=Release -DSDL_TESTS=OFF
+          cmake --build SDL/build
+          sudo cmake --install SDL/build
 
       - name: Configure with coverage
         run: |
