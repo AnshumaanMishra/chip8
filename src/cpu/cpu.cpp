@@ -4,7 +4,6 @@
 #include "../display/display.h"
 #include "../input/input.h"
 #include "../memory/memory.h"
-#include "common/constants.h"
 
 // Opcode Executor
 struct OpcodeExecutor {
@@ -164,77 +163,18 @@ struct OpcodeExecutor {
     cpu.registers[op.X] = cpu.delay_timer;
   }
   void operator()(const GetKey& op) {
-    SDL_Event event;
-    bool waiting_for_key = true;
+    bool key_pressed = false;
 
-    while (waiting_for_key) {
-      while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_EVENT_QUIT) {
-          return;
-        }
-
-        if (event.type == SDL_EVENT_KEY_DOWN) {
-          uint8_t key = 0xFF;
-          switch (event.key.key) {
-            case SDLK_1:
-              key = 0x1;
-              break;
-            case SDLK_2:
-              key = 0x2;
-              break;
-            case SDLK_3:
-              key = 0x3;
-              break;
-            case SDLK_4:
-              key = 0xC;
-              break;
-            case SDLK_Q:
-              key = 0x4;
-              break;
-            case SDLK_W:
-              key = 0x5;
-              break;
-            case SDLK_E:
-              key = 0x6;
-              break;
-            case SDLK_R:
-              key = 0xD;
-              break;
-            case SDLK_A:
-              key = 0x7;
-              break;
-            case SDLK_S:
-              key = 0x8;
-              break;
-            case SDLK_D:
-              key = 0x9;
-              break;
-            case SDLK_F:
-              key = 0xE;
-              break;
-            case SDLK_Z:
-              key = 0xA;
-              break;
-            case SDLK_X:
-              key = 0x0;
-              break;
-            case SDLK_C:
-              key = 0xB;
-              break;
-            case SDLK_V:
-              key = 0xF;
-              break;
-          }
-
-          if (key != 0xFF) {
-            cpu.keypad.press_key(key);
-            cpu.registers[op.X] = key;
-            waiting_for_key = false;
-            break;
-          }
-        }
+    for (uint8_t i = 0; i < 16; ++i) {
+      if (cpu.keypad.is_key_pressed(i)) {
+        cpu.registers[op.X] = i;
+        key_pressed = true;
+        break;
       }
-      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    if (!key_pressed) {
+      cpu.program_counter -= 2;
     }
   }
   void operator()(const SetDelay& op) {

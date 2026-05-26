@@ -3,26 +3,27 @@
 #include <cstdint>
 
 #include "SDL3/SDL_render.h"
-#include "common/constants.h"
 
-Display::Display() {
-  SDL_Window* raw_window = nullptr;
-  SDL_Renderer* raw_renderer = nullptr;
+Display::Display(bool is_headless) : headless(is_headless) {
+  if (!is_headless) {
+    SDL_Window* raw_window = nullptr;
+    SDL_Renderer* raw_renderer = nullptr;
 
-  if (!SDL_CreateWindowAndRenderer("CHIP-8 Emulator", Chip8::DISPLAY_WIDTH * Chip8::DISPLAY_SCALE,
-                                   Chip8::DISPLAY_HEIGHT * Chip8::DISPLAY_SCALE, 0, &raw_window,
-                                   &raw_renderer)) {
-    throw std::runtime_error("Error: Could not create window and renderer");
+    if (!SDL_CreateWindowAndRenderer("CHIP-8 Emulator", Chip8::DISPLAY_WIDTH * Chip8::DISPLAY_SCALE,
+                                     Chip8::DISPLAY_HEIGHT * Chip8::DISPLAY_SCALE, 0, &raw_window,
+                                     &raw_renderer)) {
+      throw std::runtime_error("Error: Could not create window and renderer");
+    }
+
+    this->window = SmartWindow{raw_window};
+    this->renderer = SmartRenderer{raw_renderer};
+
+    SDL_Texture* raw_texture =
+        SDL_CreateTexture(this->renderer.get(), SDL_PIXELFORMAT_RGBA8888,
+                          SDL_TEXTUREACCESS_STREAMING, Chip8::DISPLAY_WIDTH, Chip8::DISPLAY_HEIGHT);
+    SDL_SetTextureScaleMode(raw_texture, SDL_SCALEMODE_NEAREST);
+    this->texture = SmartTexture{raw_texture};
   }
-
-  this->window = SmartWindow{raw_window, SDL_DestroyWindow};
-  this->renderer = SmartRenderer{raw_renderer, SDL_DestroyRenderer};
-
-  SDL_Texture* raw_texture =
-      SDL_CreateTexture(this->renderer.get(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING,
-                        Chip8::DISPLAY_WIDTH, Chip8::DISPLAY_HEIGHT);
-  SDL_SetTextureScaleMode(raw_texture, SDL_SCALEMODE_NEAREST);
-  this->texture = SmartTexture{raw_texture, SDL_DestroyTexture};
 }
 
 void Display::clear() {
@@ -65,17 +66,18 @@ bool Display::draw_sprite(uint8_t x, uint8_t y, uint8_t sprite_byte) {
   return collision;
 }
 void Display::render() {
-  std::array<uint32_t, Chip8::DISPLAY_WIDTH * Chip8::DISPLAY_HEIGHT> pixel_buffer;
-  for (size_t i = 0; i < Chip8::DISPLAY_WIDTH * Chip8::DISPLAY_HEIGHT; i++) {
-    pixel_buffer[i] = (this->framebuffer_array[i] == 1) ? 0xFFFFFFFF : 0x000000FF;
+  if (!headless) {
+    std::array<uint32_t, Chip8::DISPLAY_WIDTH * Chip8::DISPLAY_HEIGHT> pixel_buffer;
+    for (size_t i = 0; i < Chip8::DISPLAY_WIDTH * Chip8::DISPLAY_HEIGHT; i++) {
+      pixel_buffer[i] = (this->framebuffer_array[i] == 1) ? 0xFFFFFFFF : 0x000000FF;
+    }
+
+    int pitch = Chip8::DISPLAY_WIDTH * sizeof(uint32_t);
+    SDL_UpdateTexture(this->texture.get(), nullptr, pixel_buffer.data(), pitch);
+    SDL_RenderClear(this->renderer.get());
+    SDL_RenderTexture(this->renderer.get(), this->texture.get(), nullptr, nullptr);
+    SDL_RenderPresent(this->renderer.get());
   }
-
-  int pitch = Chip8::DISPLAY_WIDTH * sizeof(uint32_t);
-  SDL_UpdateTexture(this->texture.get(), nullptr, pixel_buffer.data(), pitch);
-  SDL_RenderClear(this->renderer.get());
-  SDL_RenderTexture(this->renderer.get(), this->texture.get(), nullptr, nullptr);
-  SDL_RenderPresent(this->renderer.get());
-
   this->draw_flag = false;
 }
 

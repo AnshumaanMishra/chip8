@@ -49,6 +49,19 @@ class CPU {
   std::uniform_int_distribution<uint16_t> dist{0, 255};
 
  public:
+  uint8_t get_register(size_t index) const {
+    return registers[index];
+  }
+  void set_register(size_t index, uint8_t val) {
+    registers[index] = val;
+  }
+
+  uint16_t get_pc() const {
+    return program_counter;
+  }
+  void set_pc(uint16_t val) {
+    program_counter = val;
+  }
   explicit CPU(Memory& mem_ref, Display& disp_ref, Keypad& key_ref, Audio& aud_ref)
       : memory(mem_ref), display(disp_ref), keypad(key_ref), audio(aud_ref) {}
 

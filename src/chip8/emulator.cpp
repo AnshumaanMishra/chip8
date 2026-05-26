@@ -24,70 +24,72 @@ void Emulator::load_rom(const std::string& filepath) {
 }
 
 void Emulator::handle_input() {
-  SDL_Event event;
-  while (SDL_PollEvent(&event)) {
-    if (event.type == SDL_EVENT_QUIT) {
-      this->is_running = false;
-    } else if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
-      bool is_pressed = (event.type == SDL_EVENT_KEY_DOWN);
+  if (!headless) {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+      if (event.type == SDL_EVENT_QUIT) {
+        this->is_running = false;
+      } else if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
+        bool is_pressed = (event.type == SDL_EVENT_KEY_DOWN);
 
-      uint8_t key = 0xFF;
-      switch (event.key.key) {
-        case SDLK_1:
-          key = 0x1;
-          break;
-        case SDLK_2:
-          key = 0x2;
-          break;
-        case SDLK_3:
-          key = 0x3;
-          break;
-        case SDLK_4:
-          key = 0xC;
-          break;
-        case SDLK_Q:
-          key = 0x4;
-          break;
-        case SDLK_W:
-          key = 0x5;
-          break;
-        case SDLK_E:
-          key = 0x6;
-          break;
-        case SDLK_R:
-          key = 0xD;
-          break;
-        case SDLK_A:
-          key = 0x7;
-          break;
-        case SDLK_S:
-          key = 0x8;
-          break;
-        case SDLK_D:
-          key = 0x9;
-          break;
-        case SDLK_F:
-          key = 0xE;
-          break;
-        case SDLK_Z:
-          key = 0xA;
-          break;
-        case SDLK_X:
-          key = 0x0;
-          break;
-        case SDLK_C:
-          key = 0xB;
-          break;
-        case SDLK_V:
-          key = 0xF;
-          break;
-      }
+        uint8_t key = 0xFF;
+        switch (event.key.key) {
+          case SDLK_1:
+            key = 0x1;
+            break;
+          case SDLK_2:
+            key = 0x2;
+            break;
+          case SDLK_3:
+            key = 0x3;
+            break;
+          case SDLK_4:
+            key = 0xC;
+            break;
+          case SDLK_Q:
+            key = 0x4;
+            break;
+          case SDLK_W:
+            key = 0x5;
+            break;
+          case SDLK_E:
+            key = 0x6;
+            break;
+          case SDLK_R:
+            key = 0xD;
+            break;
+          case SDLK_A:
+            key = 0x7;
+            break;
+          case SDLK_S:
+            key = 0x8;
+            break;
+          case SDLK_D:
+            key = 0x9;
+            break;
+          case SDLK_F:
+            key = 0xE;
+            break;
+          case SDLK_Z:
+            key = 0xA;
+            break;
+          case SDLK_X:
+            key = 0x0;
+            break;
+          case SDLK_C:
+            key = 0xB;
+            break;
+          case SDLK_V:
+            key = 0xF;
+            break;
+        }
 
-      if (key != 0xFF) {
-        if (is_pressed)
-          this->keypad.press_key(key);
-        else
-          this->keypad.release_key(key);
+        if (key != 0xFF) {
+          if (is_pressed)
+            this->keypad.press_key(key);
+          else
+            this->keypad.release_key(key);
+        }
       }
     }
   }

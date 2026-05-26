@@ -1,7 +1,5 @@
 #include "memory.h"
 
-#include "common/constants.h"
-
 void Memory::load_font() {
   std::copy(Chip8::FONT.begin(), Chip8::FONT.end(), memory.begin() + Chip8::FONT_START);
 }

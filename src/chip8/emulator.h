@@ -19,12 +19,16 @@ class Emulator {
   CPU cpu;
 
   bool is_running{false};
+  bool headless{false};
 
   void handle_input();
 
  public:
-  Emulator() : cpu(memory, display, keypad, audio) {}
-
+  Emulator(bool is_headless = false)
+      : display(is_headless),
+        audio(is_headless),
+        cpu(memory, display, keypad, audio),
+        headless(is_headless) {}
   void load_rom(const std::string& filepath);
   void run();
 };

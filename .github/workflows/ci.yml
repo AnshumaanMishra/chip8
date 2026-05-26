@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies & Build GTest
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang libgtest-dev
+          sudo apt-get install -y cmake ninja-build clang libgtest-dev libsdl3-dev
           sudo sh -c 'cd /usr/src/gtest && cmake . && make && cp lib/*.a /usr/lib/'
 
       - name: Configure

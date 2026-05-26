@@ -3,11 +3,33 @@
 
 #include "../common/constants.h"
 #include "../common/shared_libs.h"
+#include "SDL3/SDL_render.h"
+
+struct SDL_WindowDeleter {
+  void operator()(SDL_Window* w) const {
+    if (w != nullptr)
+      SDL_DestroyWindow(w);
+  }
+};
+
+struct SDL_RendererDeleter {
+  void operator()(SDL_Renderer* w) const {
+    if (w != nullptr)
+      SDL_DestroyRenderer(w);
+  }
+};
+
+struct SDL_TextureDeleter {
+  void operator()(SDL_Texture* w) const {
+    if (w != nullptr)
+      SDL_DestroyTexture(w);
+  }
+};
 
 // Smart Pointer Aliases
-using SmartWindow = std::unique_ptr<SDL_Window, void (*)(SDL_Window*)>;
-using SmartRenderer = std::unique_ptr<SDL_Renderer, void (*)(SDL_Renderer*)>;
-using SmartTexture = std::unique_ptr<SDL_Texture, void (*)(SDL_Texture*)>;
+using SmartWindow = std::unique_ptr<SDL_Window, SDL_WindowDeleter>;
+using SmartRenderer = std::unique_ptr<SDL_Renderer, SDL_RendererDeleter>;
+using SmartTexture = std::unique_ptr<SDL_Texture, SDL_TextureDeleter>;
 
 class Display {
  private:
@@ -19,13 +41,15 @@ class Display {
   // Draw flag
   bool draw_flag{false};
 
+  // Headless flag
+  bool headless{false};
   // SDL Pointers
-  SmartWindow window{nullptr, nullptr};
-  SmartRenderer renderer{nullptr, nullptr};
-  SmartTexture texture{nullptr, nullptr};
+  SmartWindow window{nullptr};
+  SmartRenderer renderer{nullptr};
+  SmartTexture texture{nullptr};
 
  public:
-  Display();
+  explicit Display(bool is_headless = false);
 
   void clear();
   bool draw_sprite(uint8_t x, uint8_t y, uint8_t sprite_byte);
