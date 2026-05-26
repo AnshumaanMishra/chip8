@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <random>
 #include <span>
 #include <stdexcept>
