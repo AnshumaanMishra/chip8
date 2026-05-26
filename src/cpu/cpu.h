@@ -2,7 +2,11 @@
 #include "../common/constants.h"
 #include "../common/opcodes.h"
 #include "../common/shared_libs.h"
-#include "../memory/memory.h"
+
+class Memory;
+class Display;
+class Keypad;
+class Audio;
 
 // The main Emulator Class
 class CPU {
@@ -11,20 +15,15 @@ class CPU {
   // The opcode will be returned from the functions
 
   // Allocating the general purpose registers
-  std::array<uint8_t, NUM_REGISTERS> registers{0};
+  std::array<uint8_t, Chip8::NUM_REGISTERS> registers{0};
   // The 16th Register is the VF register that contains the carry flag
   // If a pixel is turned off as a part of drawing, that register is turned off
   // Used for Collision Detection
 
-  // Temporary Keypad
-  std::array<bool, 16> keypad{false};
-  // Temp Display
-  std::array<uint8_t, 64 * 32> graphics{0};
-
   // Index Register
   uint16_t index_register{0};
   // Program Counter
-  uint16_t program_counter{ROM_START};
+  uint16_t program_counter{Chip8::ROM_START};
 
   // Timer Registers
   uint8_t delay_timer{0};
@@ -33,7 +32,7 @@ class CPU {
 
   // Stack
   // CHIP-8 has 16 levels of stack and a stack pointer
-  std::array<uint16_t, STACK_SIZE> stack{0};
+  std::array<uint16_t, Chip8::STACK_SIZE> stack{0};
   uint8_t stack_pointer{0};
 
   // Opcode Dispatch Table
@@ -41,13 +40,17 @@ class CPU {
   static std::array<std::function<Opcode(uint16_t)>, 16> decode_table;
 
   Memory& memory;
+  Display& display;
+  Keypad& keypad;
+  Audio& audio;
 
   friend struct OpcodeExecutor;
   std::mt19937 rng{std::random_device{}()};
   std::uniform_int_distribution<uint16_t> dist{0, 255};
 
  public:
-  explicit CPU(Memory& mem_ref) : memory(mem_ref) {}
+  explicit CPU(Memory& mem_ref, Display& disp_ref, Keypad& key_ref, Audio& aud_ref)
+      : memory(mem_ref), display(disp_ref), keypad(key_ref), audio(aud_ref) {}
 
   void stack_push(uint16_t value);
   uint16_t stack_pop();
@@ -57,4 +60,6 @@ class CPU {
   void execute();
 
   void cycle();
+
+  void update_timers(Audio& audio);
 };

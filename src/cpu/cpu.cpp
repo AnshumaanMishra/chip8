@@ -1,7 +1,9 @@
 #include "cpu.h"
 
-#include <cstdint>
-
+#include "../audio/audio.h"
+#include "../display/display.h"
+#include "../input/input.h"
+#include "../memory/memory.h"
 #include "common/constants.h"
 
 // Opcode Executor
@@ -11,15 +13,15 @@ struct OpcodeExecutor {
   void operator()(const CallMCR&) {
     // Pass, ignored in emulation
   }
-  void operator()(const DisplayClear& op) {
-    // TODO:
+  void operator()(const DisplayClear&) {
+    cpu.display.clear();
   }
   void operator()(const FlowReturn&) {
     cpu.program_counter = cpu.stack_pop();
   }
   void operator()(const FlowGoto& op) {
 #ifndef NDEBUG
-    if (op.address < ROM_START) {
+    if (op.address < Chip8::ROM_START) {
       std::cerr << "Warning: FlowGoto attempting to jump to interpreter memory space at 0x"
                 << std::hex << op.address << std::endl;
     }
@@ -109,50 +111,52 @@ struct OpcodeExecutor {
     cpu.index_register = op.value;
   }
   void operator()(const FlowJump& op) {
+#ifdef LEGACY
+    // 1970s Behavior: Jump to NNN + V0
     cpu.program_counter = op.value + cpu.registers[0];
+#else
+    // 1990s SUPER-CHIP Behavior: Jump to XNN + VX
+    // We isolate the highest nibble of the 12-bit value to find X
+    uint8_t x = (op.value & 0x0F00) >> 8;
+    cpu.program_counter = op.value + cpu.registers[x];
+#endif
   }
   void operator()(const RandAnd& op) {
     uint8_t random_byte = cpu.dist(cpu.rng);
     cpu.registers[op.X] = random_byte & op.NN;
   }
   void operator()(const Draw& op) {
-    uint8_t x_start = cpu.registers[op.X] % DISPLAY_WIDTH;
-    uint8_t y_start = cpu.registers[op.Y] % DISPLAY_HEIGHT;
+    uint8_t x_start = cpu.registers[op.X] % Chip8::DISPLAY_WIDTH;
+    uint8_t y_start = cpu.registers[op.Y] % Chip8::DISPLAY_HEIGHT;
 
-    // Collision Flag set to false
     cpu.registers[0xF] = 0;
 
-    for (uint8_t row = 0; row < op.N; row++) {
+    for (uint8_t row = 0; row < op.N; ++row) {
+#ifndef LEGACY
+      // SUPER-CHIP (Modern): If subsequent rows spill past the bottom, clip them
+      if (y_start + row >= Chip8::DISPLAY_HEIGHT) {
+        break;  // Stop drawing the remaining rows of this sprite
+      }
+      uint8_t current_y = y_start + row;
+#else
+      // CHIP-8 (Legacy): Rows wrap entirely around the vertical axis
+      uint8_t current_y = (y_start + row) % Chip8::DISPLAY_HEIGHT;
+#endif
+
       uint8_t sprite_byte = cpu.memory.read(cpu.index_register + row);
-
-      for (uint8_t col = 0; col < 8; col++) {
-        uint8_t sprite_pixel = (sprite_byte & (0x80 >> col));
-
-        if (sprite_pixel) {
-          if (x_start + col >= DISPLAY_WIDTH || y_start + row >= DISPLAY_HEIGHT) {
-            continue;
-          }
-
-          uint16_t screen_idx = (x_start + col) + (DISPLAY_WIDTH * (y_start + row));
-
-          if (cpu.graphics[screen_idx]) {
-            cpu.registers[0xF] = 1;
-          }
-
-          cpu.graphics[screen_idx] ^= 1;
-        }
+      if (cpu.display.draw_sprite(x_start, current_y, sprite_byte)) {
+        cpu.registers[0xF] = 1;
       }
     }
   }
   void operator()(const SkipIfKey& op) {
-    uint8_t key = cpu.registers[op.X];
-    if (cpu.keypad[key]) {
+    if (cpu.keypad.is_key_pressed(cpu.registers[op.X])) {
       cpu.program_counter += 2;
     }
   }
+
   void operator()(const SkipIfNotKey& op) {
-    uint8_t key = cpu.registers[op.X];
-    if (!cpu.keypad[key]) {
+    if (!cpu.keypad.is_key_pressed(cpu.registers[op.X])) {
       cpu.program_counter += 2;
     }
   }
@@ -160,18 +164,77 @@ struct OpcodeExecutor {
     cpu.registers[op.X] = cpu.delay_timer;
   }
   void operator()(const GetKey& op) {
-    bool key_pressed = false;
+    SDL_Event event;
+    bool waiting_for_key = true;
 
-    for (uint8_t i = 0; i < 16; ++i) {
-      if (cpu.keypad[i]) {
-        cpu.registers[op.X] = i;
-        key_pressed = true;
-        break;
+    while (waiting_for_key) {
+      while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_EVENT_QUIT) {
+          return;
+        }
+
+        if (event.type == SDL_EVENT_KEY_DOWN) {
+          uint8_t key = 0xFF;
+          switch (event.key.key) {
+            case SDLK_1:
+              key = 0x1;
+              break;
+            case SDLK_2:
+              key = 0x2;
+              break;
+            case SDLK_3:
+              key = 0x3;
+              break;
+            case SDLK_4:
+              key = 0xC;
+              break;
+            case SDLK_Q:
+              key = 0x4;
+              break;
+            case SDLK_W:
+              key = 0x5;
+              break;
+            case SDLK_E:
+              key = 0x6;
+              break;
+            case SDLK_R:
+              key = 0xD;
+              break;
+            case SDLK_A:
+              key = 0x7;
+              break;
+            case SDLK_S:
+              key = 0x8;
+              break;
+            case SDLK_D:
+              key = 0x9;
+              break;
+            case SDLK_F:
+              key = 0xE;
+              break;
+            case SDLK_Z:
+              key = 0xA;
+              break;
+            case SDLK_X:
+              key = 0x0;
+              break;
+            case SDLK_C:
+              key = 0xB;
+              break;
+            case SDLK_V:
+              key = 0xF;
+              break;
+          }
+
+          if (key != 0xFF) {
+            cpu.keypad.press_key(key);
+            cpu.registers[op.X] = key;
+            waiting_for_key = false;
+            break;
+          }
+        }
       }
-    }
-
-    if (!key_pressed) {
-      cpu.program_counter -= 2;
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
   }
   void operator()(const SetDelay& op) {
@@ -184,7 +247,7 @@ struct OpcodeExecutor {
     cpu.index_register += cpu.registers[op.X];
   }
   void operator()(const SetSpriteLoc& op) {
-    cpu.index_register = FONT_START + (cpu.registers[op.X] * 5);
+    cpu.index_register = Chip8::FONT_START + (cpu.registers[op.X] * 5);
   }
   void operator()(const SetBCD& op) {
     uint8_t val = cpu.registers[op.X];
@@ -219,7 +282,7 @@ struct OpcodeExecutor {
 // Stack Operations
 
 void CPU::stack_push(uint16_t value) {
-  if (stack_pointer == STACK_SIZE) {
+  if (stack_pointer == Chip8::STACK_SIZE) {
     throw std::runtime_error("Error: Stack Size Full");
   }
 
@@ -332,7 +395,7 @@ std::array<std::function<Opcode(uint16_t)>, 16> CPU::decode_table = [] {
       case 0xA1:
         return SkipIfNotKey{x};
       default:
-        throw std::runtime_error("Invlid Opcode");
+        throw std::runtime_error("Invalid Opcode");
     }
   };
   table[0xF] = [](uint16_t remaining_nibbles) -> Opcode {
@@ -358,7 +421,7 @@ std::array<std::function<Opcode(uint16_t)>, 16> CPU::decode_table = [] {
       case 0x65:
         return RegLoad{x};
       default:
-        throw std::runtime_error("Invlid Opcode");
+        throw std::runtime_error("Invalid Opcode");
     }
   };
 
@@ -387,4 +450,20 @@ void CPU::cycle() {
 
   OpcodeExecutor visitor{*this};
   std::visit(visitor, decoded_op);
+}
+
+void CPU::update_timers(Audio& audio) {
+  if (this->delay_timer > 0) {
+    this->delay_timer--;
+  }
+
+  if (this->sound_timer > 0) {
+    audio.start_beep();
+
+    this->sound_timer--;
+
+    if (this->sound_timer == 0) {
+      audio.stop_beep();
+    }
+  }
 }

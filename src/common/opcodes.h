@@ -1,3 +1,4 @@
+#pragma once
 #include "shared_libs.h"
 
 // 01. 0x0NNN: Calls Machine Code Routine at address 0x0NNN

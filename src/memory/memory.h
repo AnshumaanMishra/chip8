@@ -6,7 +6,7 @@ class Memory {
  private:
   // Allocation of the 4096 bytes of RAM
   // unsigned 8 bit integer array
-  std::array<uint8_t, MEMORY_SIZE> memory{0};
+  std::array<uint8_t, Chip8::MEMORY_SIZE> memory{0};
   // The system Memory Map is as follows:
   // - `0x000` -> `0x1FF` (0 to 511) : CHIP-8 Interpreter
   // - `0x050` -> `0x0A0` (75 to 150) : 4 × 5 pixel font set

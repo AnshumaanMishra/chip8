@@ -1,12 +1,8 @@
 #pragma once
 #include <SDL3/SDL.h>
 
-#include <memory>
-
 #include "../common/constants.h"
 #include "../common/shared_libs.h"
-#include "SDL3/SDL_render.h"
-#include "SDL3/SDL_video.h"
 
 // Smart Pointer Aliases
 using SmartWindow = std::unique_ptr<SDL_Window, void (*)(SDL_Window*)>;
@@ -18,7 +14,7 @@ class Display {
   // Display Grid
   // 64 by 32 pixels
   // Each block holds the pixel state 0 or 1
-  std::array<uint16_t, DISPLAY_WIDTH * DISPLAY_HEIGHT> framebuffer_array{0};
+  std::array<uint16_t, Chip8::DISPLAY_WIDTH * Chip8::DISPLAY_HEIGHT> framebuffer_array{0};
 
   // Draw flag
   bool draw_flag{false};
@@ -35,4 +31,7 @@ class Display {
   bool draw_sprite(uint8_t x, uint8_t y, uint8_t sprite_byte);
   void render();
   bool is_draw_flag_set() const;
+  bool requires_render() const {
+    return this->draw_flag;
+  }
 };

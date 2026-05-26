@@ -1,5 +1,5 @@
 add_library(chip8_lib STATIC
-  chip8/chip8.cpp
+  chip8/emulator.cpp
   cpu/cpu.cpp
   memory/memory.cpp
 )
@@ -12,7 +12,7 @@ if(NOT CHIP8_HEADLESS)
   )
   target_link_libraries(chip8_lib PUBLIC SDL3::SDL3)
 endif()
-
+target_compile_definitions(chip8_lib PRIVATE LEGACY)
 target_include_directories(chip8_lib PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
